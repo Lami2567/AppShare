@@ -25,26 +25,33 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 }
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin) {
-    return unauthorized();
-  }
+  try {
+    const admin = await requireAdmin();
+    if (!admin) {
+      return unauthorized();
+    }
 
-  const { id } = await context.params;
-  const body = await request.json();
-  const name = String(body.name ?? "").trim();
-  const description = String(body.description ?? "").trim();
-  const iconUrl = String(body.iconUrl ?? "").trim() || null;
+    const { id } = await context.params;
+    const body = await request.json();
+    const name = String(body.name ?? "").trim();
+    const description = String(body.description ?? "").trim();
+    const iconUrl = String(body.iconUrl ?? "").trim() || null;
 
-  if (!name) {
-    return NextResponse.json({ error: "App name is required." }, { status: 400 });
-  }
+    if (!name) {
+      return NextResponse.json({ error: "App name is required." }, { status: 400 });
+    }
 
-  const app = await updateApp(id, { name, description, iconUrl });
-  if (!app) {
-    return NextResponse.json({ error: "App not found." }, { status: 404 });
+    const app = await updateApp(id, { name, description, iconUrl });
+    if (!app) {
+      return NextResponse.json({ error: "App not found." }, { status: 404 });
+    }
+    return NextResponse.json({ app });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "App could not be saved." },
+      { status: 500 }
+    );
   }
-  return NextResponse.json({ app });
 }
 
 export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {

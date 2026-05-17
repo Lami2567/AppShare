@@ -12,20 +12,27 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const admin = await requireAdmin();
-  if (!admin) {
-    return unauthorized();
+  try {
+    const admin = await requireAdmin();
+    if (!admin) {
+      return unauthorized();
+    }
+
+    const body = await request.json();
+    const name = String(body.name ?? "").trim();
+    const description = String(body.description ?? "").trim();
+    const iconUrl = String(body.iconUrl ?? "").trim() || null;
+
+    if (!name) {
+      return NextResponse.json({ error: "App name is required." }, { status: 400 });
+    }
+
+    const app = await createApp({ name, description, iconUrl });
+    return NextResponse.json({ app }, { status: 201 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "App could not be created." },
+      { status: 500 }
+    );
   }
-
-  const body = await request.json();
-  const name = String(body.name ?? "").trim();
-  const description = String(body.description ?? "").trim();
-  const iconUrl = String(body.iconUrl ?? "").trim() || null;
-
-  if (!name) {
-    return NextResponse.json({ error: "App name is required." }, { status: 400 });
-  }
-
-  const app = await createApp({ name, description, iconUrl });
-  return NextResponse.json({ app }, { status: 201 });
 }

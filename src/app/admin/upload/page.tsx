@@ -20,15 +20,26 @@ export default function UploadPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formElement = event.currentTarget;
     setStatus("Uploading APK");
     setProgress(28);
-    const formData = new FormData(event.currentTarget);
-    const res = await fetch("/api/upload", { method: "POST", body: formData });
-    setProgress(res.ok ? 100 : 0);
-    setStatus(res.ok ? "Upload complete" : "Upload failed. Check file type, size, and server configuration.");
-    if (res.ok) {
-      event.currentTarget.reset();
+    try {
+      const formData = new FormData(formElement);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const body = await res.json().catch(() => null);
+      setProgress(res.ok ? 100 : 0);
+
+      if (!res.ok) {
+        setStatus(body?.error ?? `Upload failed with status ${res.status}.`);
+        return;
+      }
+
+      setStatus("Upload complete");
+      formElement.reset();
       setFileName("");
+    } catch (error) {
+      setProgress(0);
+      setStatus(error instanceof Error ? error.message : "Upload failed.");
     }
   }
 
