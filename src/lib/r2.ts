@@ -48,6 +48,26 @@ export async function uploadApkToR2(input: {
   return getObjectUrl(input.key);
 }
 
+export async function uploadFileToR2(input: {
+  key: string;
+  body: Buffer;
+  contentType: string;
+  cacheControl?: string;
+}) {
+  const bucket = requiredEnv("R2_BUCKET_NAME");
+  await getR2Client().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: input.key,
+      Body: input.body,
+      ContentType: input.contentType,
+      CacheControl: input.cacheControl ?? "public, max-age=31536000, immutable"
+    })
+  );
+
+  return getObjectUrl(input.key);
+}
+
 export async function getDownloadUrl(keyOrUrl: string) {
   if (!keyOrUrl.startsWith("r2://")) {
     return keyOrUrl;
