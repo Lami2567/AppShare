@@ -6,6 +6,32 @@ import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/button";
 import type { AppRecord } from "@/lib/types";
 
+function uploadToStorage(uploadUrl: string, file: File, contentType: string, onProgress: (progress: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("PUT", uploadUrl);
+    request.setRequestHeader("Content-Type", contentType);
+    request.timeout = 30 * 60 * 1000;
+
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        resolve();
+        return;
+      }
+      reject(new Error(`Storage upload failed with status ${request.status}.`));
+    };
+    request.onerror = () => reject(new Error("Storage upload failed. Check the R2 CORS policy and network connection."));
+    request.ontimeout = () => reject(new Error("Storage upload timed out before R2 responded."));
+    request.onabort = () => reject(new Error("Storage upload was cancelled."));
+    request.send(file);
+  });
+}
+
 export default function UploadPage() {
   const [apps, setApps] = useState<AppRecord[]>([]);
   const [fileName, setFileName] = useState("");
@@ -54,17 +80,10 @@ export default function UploadPage() {
 
       setStatus("Uploading APK to storage");
       setProgress(45);
-      const uploadRes = await fetch(uploadUrlBody.uploadUrl, {
-        method: "PUT",
-        headers: { "Content-Type": uploadUrlBody.contentType },
-        body: file
+      await uploadToStorage(uploadUrlBody.uploadUrl, file, uploadUrlBody.contentType, (storageProgress) => {
+        setProgress(45 + Math.round(storageProgress * 0.35));
+        setStatus(`Uploading APK to storage (${storageProgress}%)`);
       });
-
-      if (!uploadRes.ok) {
-        setProgress(0);
-        setStatus(`Storage upload failed with status ${uploadRes.status}.`);
-        return;
-      }
 
       setStatus("Publishing version");
       setProgress(82);
