@@ -25,54 +25,59 @@ export default function AppsAdminPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     setStatus("");
 
-    let iconUrl = editing?.icon_url ?? null;
-    const iconFile = form.get("iconFile");
+    try {
+      let iconUrl = editing?.icon_url ?? null;
+      const iconFile = form.get("iconFile");
 
-    if (iconFile instanceof File && iconFile.size > 0) {
-      setStatus("Uploading icon");
-      const iconForm = new FormData();
-      iconForm.append("file", iconFile);
-      const iconRes = await fetch("/api/upload-icon", {
-        method: "POST",
-        body: iconForm
+      if (iconFile instanceof File && iconFile.size > 0) {
+        setStatus("Uploading icon");
+        const iconForm = new FormData();
+        iconForm.append("file", iconFile);
+        const iconRes = await fetch("/api/upload-icon", {
+          method: "POST",
+          body: iconForm
+        });
+
+        if (!iconRes.ok) {
+          const error = await iconRes.json().catch(() => null);
+          setStatus(error?.error ?? "Icon upload failed.");
+          return;
+        }
+
+        const iconData = await iconRes.json();
+        iconUrl = iconData.url;
+      }
+
+      const payload = {
+        name: form.get("name"),
+        description: form.get("description"),
+        iconUrl
+      };
+      setStatus(editing ? "Saving app" : "Creating app");
+      const res = await fetch(editing ? `/api/apps/${editing.id}` : "/api/apps", {
+        method: editing ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
       });
 
-      if (!iconRes.ok) {
-        const error = await iconRes.json().catch(() => null);
-        setStatus(error?.error ?? "Icon upload failed.");
+      if (!res.ok) {
+        const error = await res.json().catch(() => null);
+        setStatus(error?.error ?? "App could not be saved.");
         return;
       }
 
-      const iconData = await iconRes.json();
-      iconUrl = iconData.url;
+      formElement.reset();
+      setEditing(null);
+      setIconName("");
+      setStatus("");
+      load();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "App could not be saved.");
     }
-
-    const payload = {
-      name: form.get("name"),
-      description: form.get("description"),
-      iconUrl
-    };
-    setStatus(editing ? "Saving app" : "Creating app");
-    const res = await fetch(editing ? `/api/apps/${editing.id}` : "/api/apps", {
-      method: editing ? "PUT" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const error = await res.json().catch(() => null);
-      setStatus(error?.error ?? "App could not be saved.");
-      return;
-    }
-
-    event.currentTarget.reset();
-    setEditing(null);
-    setIconName("");
-    setStatus("");
-    load();
   }
 
   async function remove(id: string) {
