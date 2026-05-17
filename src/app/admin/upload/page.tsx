@@ -21,19 +21,74 @@ export default function UploadPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formElement = event.currentTarget;
-    setStatus("Uploading APK");
-    setProgress(28);
+    setStatus("Preparing upload");
+    setProgress(12);
     try {
       const formData = new FormData(formElement);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const body = await res.json().catch(() => null);
-      setProgress(res.ok ? 100 : 0);
+      const file = formData.get("file");
 
-      if (!res.ok) {
-        setStatus(body?.error ?? `Upload failed with status ${res.status}.`);
+      if (!(file instanceof File) || file.size === 0) {
+        setProgress(0);
+        setStatus("APK file is required.");
         return;
       }
 
+      const uploadUrlRes = await fetch("/api/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: formData.get("appId"),
+          versionName: formData.get("versionName"),
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size
+        })
+      });
+      const uploadUrlBody = await uploadUrlRes.json().catch(() => null);
+
+      if (!uploadUrlRes.ok) {
+        setProgress(0);
+        setStatus(uploadUrlBody?.error ?? `Upload setup failed with status ${uploadUrlRes.status}.`);
+        return;
+      }
+
+      setStatus("Uploading APK to storage");
+      setProgress(45);
+      const uploadRes = await fetch(uploadUrlBody.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": uploadUrlBody.contentType },
+        body: file
+      });
+
+      if (!uploadRes.ok) {
+        setProgress(0);
+        setStatus(`Storage upload failed with status ${uploadRes.status}.`);
+        return;
+      }
+
+      setStatus("Publishing version");
+      setProgress(82);
+      const completeRes = await fetch("/api/upload-complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appId: formData.get("appId"),
+          versionName: formData.get("versionName"),
+          changelog: formData.get("changelog"),
+          fileUrl: uploadUrlBody.fileUrl,
+          fileKey: uploadUrlBody.key,
+          fileSize: file.size
+        })
+      });
+      const completeBody = await completeRes.json().catch(() => null);
+
+      if (!completeRes.ok) {
+        setProgress(0);
+        setStatus(completeBody?.error ?? `Version could not be saved with status ${completeRes.status}.`);
+        return;
+      }
+
+      setProgress(100);
       setStatus("Upload complete");
       formElement.reset();
       setFileName("");

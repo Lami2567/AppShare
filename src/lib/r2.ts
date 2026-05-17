@@ -68,6 +68,29 @@ export async function uploadFileToR2(input: {
   return getObjectUrl(input.key);
 }
 
+export async function createPresignedUploadUrl(input: {
+  key: string;
+  contentType: string;
+  expiresIn?: number;
+}) {
+  const bucket = requiredEnv("R2_BUCKET_NAME");
+  const uploadUrl = await getSignedUrl(
+    getR2Client(),
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: input.key,
+      ContentType: input.contentType,
+      CacheControl: "public, max-age=31536000, immutable"
+    }),
+    { expiresIn: input.expiresIn ?? 60 * 10 }
+  );
+
+  return {
+    uploadUrl,
+    fileUrl: getObjectUrl(input.key)
+  };
+}
+
 export async function getDownloadUrl(keyOrUrl: string) {
   if (!keyOrUrl.startsWith("r2://")) {
     return keyOrUrl;
