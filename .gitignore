@@ -7,3 +7,4 @@ out
 vercel
 .vercel
 dist
+*.env.example
