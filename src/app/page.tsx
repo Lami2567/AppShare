@@ -27,18 +27,6 @@ export default function Home() {
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
             AppShare gives teams a clean download home for Android apps, internal builds, beta releases, QA packages, and customer-ready APKs.
           </p>
-          <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-3">
-            {[
-              { value: "APK", label: "validated uploads" },
-              { value: "R2", label: "fast file delivery" },
-              { value: "Neon", label: "release metadata" }
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-xl border border-violet-100 bg-white/80 p-4 shadow-sm">
-                <p className="text-2xl font-bold text-violet-950">{stat.value}</p>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">{stat.label}</p>
-              </div>
-            ))}
-          </div>
           <div className="mt-8 flex flex-wrap gap-3">
             <a href="#apps" className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-700">
               Browse Apps
