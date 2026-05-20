@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 import { requireAdmin, unauthorized } from "@/lib/auth";
 import { createVersion } from "@/lib/db";
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
     const fileUrl = String(body.fileUrl ?? "").trim();
     const fileKey = String(body.fileKey ?? "").trim();
     const fileSize = Number(body.fileSize ?? 0);
+    const downloadPassword = String(body.downloadPassword ?? "").trim();
 
     if (!appId || !versionName || !fileUrl || !fileKey || !fileSize) {
       return NextResponse.json({ error: "Upload metadata is incomplete." }, { status: 400 });
@@ -27,7 +29,8 @@ export async function POST(request: Request) {
       changelog,
       fileUrl,
       fileKey,
-      fileSize
+      fileSize,
+      downloadPasswordHash: downloadPassword ? await bcrypt.hash(downloadPassword, 12) : null
     });
 
     return NextResponse.json({ version }, { status: 201 });

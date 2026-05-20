@@ -1,6 +1,6 @@
 "use client";
 
-import { CloudUpload, FileArchive } from "lucide-react";
+import { CloudUpload, FileArchive, LockKeyhole } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { Button } from "@/components/button";
@@ -94,6 +94,7 @@ export default function UploadPage() {
           appId: formData.get("appId"),
           versionName: formData.get("versionName"),
           changelog: formData.get("changelog"),
+          downloadPassword: formData.get("downloadPassword"),
           fileUrl: uploadUrlBody.fileUrl,
           fileKey: uploadUrlBody.key,
           fileSize: file.size
@@ -143,6 +144,18 @@ export default function UploadPage() {
         <label className="mt-4 block text-sm font-semibold">
           Changelog
           <textarea name="changelog" rows={5} placeholder="Release notes" className="focus-ring mt-2 w-full rounded-lg border border-violet-200 px-3 py-2.5" />
+        </label>
+        <label className="mt-4 block text-sm font-semibold">
+          Download Password
+          <span className="mt-2 flex items-center gap-3 rounded-lg border border-violet-200 px-3 py-2.5 focus-within:ring-2 focus-within:ring-violet-400">
+            <LockKeyhole className="size-4 shrink-0 text-violet-600" />
+            <input
+              name="downloadPassword"
+              type="password"
+              placeholder="Leave blank for normal downloads"
+              className="w-full bg-transparent outline-none"
+            />
+          </span>
         </label>
         <label className="mt-5 grid cursor-pointer place-items-center rounded-xl border-2 border-dashed border-violet-200 bg-violet-50/60 px-5 py-10 text-center transition hover:border-violet-400">
           <FileArchive className="size-10 text-violet-600" />

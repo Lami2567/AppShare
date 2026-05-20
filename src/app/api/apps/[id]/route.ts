@@ -14,7 +14,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const versions = await Promise.all(
       app.versions.map(async (version) => ({
         ...version,
-        file_url: await getDownloadUrl(version.file_key ? `r2://${process.env.R2_BUCKET_NAME}/${version.file_key}` : version.file_url)
+        file_url: version.has_download_password
+          ? null
+          : await getDownloadUrl(version.file_key ? `r2://${process.env.R2_BUCKET_NAME}/${version.file_key}` : version.file_url ?? "")
       }))
     );
 

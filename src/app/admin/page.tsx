@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, CloudUpload, Layers3 } from "lucide-react";
+import { Boxes, Layers3, LockKeyhole } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin-shell";
 import { MetricCard } from "@/components/metric-card";
@@ -17,13 +17,14 @@ export default function AdminDashboard() {
   }, []);
 
   const versionCount = useMemo(() => apps.reduce((sum, app) => sum + (app.version_count ?? 0), 0), [apps]);
+  const protectedCount = useMemo(() => apps.reduce((sum, app) => sum + (app.protected_version_count ?? 0), 0), [apps]);
 
   return (
     <AdminShell>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard label="Published Apps" value={apps.length} icon={Boxes} />
         <MetricCard label="Total Versions" value={versionCount} icon={Layers3} />
-        <MetricCard label="Upload Target" value="R2" icon={CloudUpload} />
+        <MetricCard label="Protected Downloads" value={protectedCount} icon={LockKeyhole} />
       </div>
       <section className="mt-8 rounded-xl border border-violet-100 bg-white shadow-sm">
         <div className="border-b border-violet-100 p-5">

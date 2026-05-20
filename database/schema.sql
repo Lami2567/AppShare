@@ -24,8 +24,12 @@ create table if not exists app_versions (
   file_url text not null,
   file_key text,
   file_size bigint not null,
+  download_password_hash text,
   created_at timestamptz not null default now()
 );
+
+alter table app_versions
+  add column if not exists download_password_hash text;
 
 create index if not exists app_versions_app_id_created_at_idx
   on app_versions (app_id, created_at desc);

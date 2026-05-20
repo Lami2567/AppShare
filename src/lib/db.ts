@@ -22,19 +22,20 @@ export async function listApps(): Promise<AppRecord[]> {
       a.created_at,
       a.updated_at,
       latest.version_name as current_version,
-      latest.file_url as latest_file_url,
+      case when latest.download_password_hash is null then latest.file_url else null end as latest_file_url,
       latest.id as latest_version_id,
-      count(v.id)::int as version_count
+      count(v.id)::int as version_count,
+      count(v.id) filter (where v.download_password_hash is not null)::int as protected_version_count
     from apps a
     left join lateral (
-      select id, version_name, file_url
+      select id, version_name, file_url, download_password_hash
       from app_versions
       where app_id = a.id
       order by created_at desc
       limit 1
     ) latest on true
     left join app_versions v on v.app_id = a.id
-    group by a.id, latest.id, latest.version_name, latest.file_url
+    group by a.id, latest.id, latest.version_name, latest.file_url, latest.download_password_hash
     order by a.updated_at desc
   `;
 
@@ -52,12 +53,13 @@ export async function getAppById(id: string): Promise<AppDetail | null> {
       a.created_at,
       a.updated_at,
       latest.version_name as current_version,
-      latest.file_url as latest_file_url,
+      case when latest.download_password_hash is null then latest.file_url else null end as latest_file_url,
       latest.id as latest_version_id,
-      count(v.id)::int as version_count
+      count(v.id)::int as version_count,
+      count(v.id) filter (where v.download_password_hash is not null)::int as protected_version_count
     from apps a
     left join lateral (
-      select id, version_name, file_url
+      select id, version_name, file_url, download_password_hash
       from app_versions
       where app_id = a.id
       order by created_at desc
@@ -65,7 +67,7 @@ export async function getAppById(id: string): Promise<AppDetail | null> {
     ) latest on true
     left join app_versions v on v.app_id = a.id
     where a.id = ${id}
-    group by a.id, latest.id, latest.version_name, latest.file_url
+    group by a.id, latest.id, latest.version_name, latest.file_url, latest.download_password_hash
   `) as AppRecord[];
 
   if (!apps[0]) {
@@ -73,7 +75,16 @@ export async function getAppById(id: string): Promise<AppDetail | null> {
   }
 
   const versions = (await sql`
-    select id, app_id, version_name, changelog, file_url, file_key, file_size, created_at
+    select
+      id,
+      app_id,
+      version_name,
+      changelog,
+      file_url,
+      file_key,
+      file_size,
+      download_password_hash is not null as has_download_password,
+      created_at
     from app_versions
     where app_id = ${id}
     order by created_at desc
@@ -132,19 +143,46 @@ export async function createVersion(input: {
   fileUrl: string;
   fileKey?: string | null;
   fileSize: number;
+  downloadPasswordHash?: string | null;
 }) {
   const sql = getSql();
   const rows = await sql`
-    insert into app_versions (app_id, version_name, changelog, file_url, file_key, file_size)
+    insert into app_versions (app_id, version_name, changelog, file_url, file_key, file_size, download_password_hash)
     values (
       ${input.appId},
       ${input.versionName},
       ${input.changelog},
       ${input.fileUrl},
       ${input.fileKey ?? null},
-      ${input.fileSize}
+      ${input.fileSize},
+      ${input.downloadPasswordHash ?? null}
     )
-    returning id, app_id, version_name, changelog, file_url, file_key, file_size, created_at
+    returning
+      id,
+      app_id,
+      version_name,
+      changelog,
+      file_url,
+      file_key,
+      file_size,
+      download_password_hash is not null as has_download_password,
+      created_at
   `;
   return rows[0] as AppVersion;
+}
+
+export async function getVersionForDownload(id: string) {
+  const sql = getSql();
+  const rows = await sql`
+    select id, file_url, file_key, download_password_hash
+    from app_versions
+    where id = ${id}
+    limit 1
+  `;
+  return (rows[0] as {
+    id: string;
+    file_url: string;
+    file_key?: string | null;
+    download_password_hash?: string | null;
+  } | undefined) ?? null;
 }

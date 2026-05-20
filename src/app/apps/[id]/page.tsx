@@ -1,17 +1,22 @@
 "use client";
 
-import { ArrowDownToLine, ChevronLeft, Clock, FileArchive } from "lucide-react";
+import { ArrowDownToLine, ChevronLeft, Clock, FileArchive, LockKeyhole, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { PublicShell } from "@/components/public-shell";
 import { formatBytes, formatDate } from "@/lib/format";
-import type { AppDetail } from "@/lib/types";
+import type { AppDetail, AppVersion } from "@/lib/types";
 
 export default function AppDetailPage() {
   const params = useParams<{ id: string }>();
   const [app, setApp] = useState<AppDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordVersion, setPasswordVersion] = useState<AppVersion | null>(null);
+  const [password, setPassword] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     fetch(`/api/apps/${params.id}`, { cache: "no-store" })
@@ -19,6 +24,40 @@ export default function AppDetailPage() {
       .then((data) => setApp(data?.app ?? null))
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  async function submitPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!passwordVersion) {
+      return;
+    }
+
+    setDownloading(true);
+    setDownloadError("");
+    try {
+      const res = await fetch(`/api/downloads/${passwordVersion.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password })
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.url) {
+        setDownloadError(body?.error ?? "Download could not be unlocked.");
+        return;
+      }
+
+      window.location.href = body.url;
+      setPasswordVersion(null);
+      setPassword("");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  function closePasswordDialog() {
+    setPasswordVersion(null);
+    setPassword("");
+    setDownloadError("");
+  }
 
   return (
     <PublicShell>
@@ -64,10 +103,24 @@ export default function AppDetailPage() {
                         <p className="mt-1 text-sm text-slate-500">{formatDate(version.created_at)} · {formatBytes(version.file_size)}</p>
                         <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-600">{version.changelog || "No changelog provided."}</p>
                       </div>
-                      <a href={version.file_url} className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700">
-                        <ArrowDownToLine className="size-4" />
-                        Download
-                      </a>
+                      {version.has_download_password ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPasswordVersion(version);
+                            setDownloadError("");
+                          }}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700"
+                        >
+                          <LockKeyhole className="size-4" />
+                          Download
+                        </button>
+                      ) : (
+                        <a href={version.file_url ?? `/api/downloads/${version.id}`} className="inline-flex items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700">
+                          <ArrowDownToLine className="size-4" />
+                          Download
+                        </a>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -81,6 +134,37 @@ export default function AppDetailPage() {
             <h1 className="text-2xl font-bold text-violet-950">App not found</h1>
           </div>
         )}
+        {passwordVersion ? (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-violet-950/40 px-4">
+            <form onSubmit={submitPassword} className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-500">Protected Download</p>
+                  <h2 className="mt-1 text-xl font-bold text-violet-950">{passwordVersion.version_name}</h2>
+                </div>
+                <button type="button" onClick={closePasswordDialog} className="rounded-lg p-2 text-slate-500 hover:bg-violet-50 hover:text-violet-800">
+                  <X className="size-5" />
+                </button>
+              </div>
+              <label className="mt-5 block text-sm font-semibold text-violet-950">
+                Password
+                <input
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  type="password"
+                  required
+                  autoFocus
+                  className="focus-ring mt-2 w-full rounded-lg border border-violet-200 px-3 py-2.5"
+                />
+              </label>
+              {downloadError ? <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{downloadError}</p> : null}
+              <button type="submit" disabled={downloading} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-70">
+                <ArrowDownToLine className="size-4" />
+                {downloading ? "Checking" : "Download"}
+              </button>
+            </form>
+          </div>
+        ) : null}
       </section>
     </PublicShell>
   );
